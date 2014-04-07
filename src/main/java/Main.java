@@ -3,7 +3,9 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-
+import akkatemplate.actors.SimpleTestActor;
+import akkatemplate.messages.DummyOutputReply;
+import akkatemplate.messages.Messages;
 import com.disbrain.dbmslayer.DbmsLayer;
 import com.disbrain.dbmslayer.DbmsLayerProvider;
 import com.disbrain.dbmslayer.descriptors.RequestModes;
@@ -21,22 +23,22 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        Future<Object> generic_reply = null;
-        Object generic_response = null;
+        Future<Object> generic_reply;
+        Object generic_response;
         ArrayList<Future<Object>> output_storage = new ArrayList<Future<Object>>();
-        int storage_size = 0;
+        int storage_size;
 
         Config user_cfg = ConfigFactory.load();
         ActorSystem your_app_actorsystem = akka.actor.ActorSystem.create("YourAppAS", user_cfg);
 
         DbmsLayerProvider db_layer = DbmsLayer.DbmsLayerProvider.get(your_app_actorsystem);
 
-//        ActorRef actor = your_app_actorsystem.actorOf(Props.create(SimpleTestActor.class));
+        ActorRef actor = your_app_actorsystem.actorOf(Props.create(SimpleTestActor.class));
 
 
         /* Here we try a simple request to the dbs trough a future */
 
-         /*
+
         generic_reply = Patterns.ask(db_layer.getQueriesBroker(), //is outside from an actor context, we use this broker to communicate with dbms querying system
                                     new QueryRequest("SELECT COUNT(*) FROM Activities;", //SQL query
                                                     new RequestModes(RequestModes.RequestTypology.READ_ONLY), //Query typology
@@ -65,7 +67,7 @@ public class Main {
                                     4096000);
         output_storage.add(generic_reply);
 
-        /*
+
         generic_reply = Patterns.ask(   db_layer.getQueriesBroker(),
                                         new QueryRequest("SELECT GET_LOCK(321,-1);", //SQL query
                                                          new RequestModes(RequestModes.RequestTypology.READ_WRITE,
@@ -124,12 +126,12 @@ public class Main {
                 System.out.println("Return code for complex actor-based task is: " + reply.getReturnCode() + "\nData found: ");
                 if (reply.getReturnCode() == 0)
                     for (Long element : reply.getOutDataList())
-                        System.out.println(String.format("\t%d", element.longValue()));
+                        System.out.println(String.format("\t%d", element));
                 else
                     System.out.println("Error found: " + reply.getReturnMsg());
             }
         }
-         */
+
         System.out.println("Simple test finished!");
 
         your_app_actorsystem.shutdown();
