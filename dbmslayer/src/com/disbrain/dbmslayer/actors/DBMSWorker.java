@@ -5,6 +5,7 @@ import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import akka.event.LoggingAdapter;
 import com.disbrain.dbmslayer.DbmsLayer;
+import com.disbrain.dbmslayer.descriptors.ConnectionTweaksDescriptor;
 import com.disbrain.dbmslayer.exceptions.DbmsException;
 import com.disbrain.dbmslayer.exceptions.DbmsLayerError;
 import com.disbrain.dbmslayer.exceptions.DbmsRemoteDbError;
@@ -23,13 +24,14 @@ public class DBMSWorker extends UntypedActor {
     private PreparedStatement prepared_running_stmt = null;
 
     private Connection dbms_connection = null;
-
+    private final ConnectionTweaksDescriptor connection_params;
     private ArrayList<Object> messages = new ArrayList<Object>();
     private ArrayList<ActorRef> messages_senders = new ArrayList<ActorRef>();
     private final LoggingAdapter log;
 
-    public DBMSWorker() {
-        log = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getLoggingAdapter();
+    public DBMSWorker(ConnectionTweaksDescriptor connection_params) {
+        this.connection_params = connection_params;
+        this.log = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getLoggingAdapter();
     }
 
     public void closeStatement() {
@@ -49,7 +51,7 @@ public class DBMSWorker extends UntypedActor {
 
     @Override
     public void preStart() {
-        DbmsLayer.DbmsLayerProvider.get(getContext().system()).getConnectionsBroker().tell(new GetDbmsConnectionRequest(), getSelf());
+        DbmsLayer.DbmsLayerProvider.get(getContext().system()).getConnectionsBroker().tell(new GetDbmsConnectionRequest(connection_params), getSelf());
     }
 
     @Override

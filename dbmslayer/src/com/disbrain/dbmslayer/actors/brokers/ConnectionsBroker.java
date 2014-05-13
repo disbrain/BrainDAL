@@ -42,7 +42,7 @@ public class ConnectionsBroker extends UntypedActor {
                 Object output = null;
 
                 try {
-                    output = new GetDbmsConnectionReply(connection_pool.getConnection());
+                    output = new GetDbmsConnectionReply(connection_pool.getConnection(), ((GetDbmsConnectionRequest) message).connection_params);
                     connections_taken.incrementAndGet();
                 } catch (SQLException exc) {
                     output = new DbmsConnectionPoolError(exc, connection_pool.getStatistics());
@@ -62,7 +62,7 @@ public class ConnectionsBroker extends UntypedActor {
                         return;
                     }
                 } catch (SQLException exc) {
-                    log.error(exc,"ERROR CHECKING CONNECTION STATUS, TRYING TO KEEP GOING");
+                    log.error(exc, "ERROR CHECKING CONNECTION STATUS, TRYING TO KEEP GOING");
                 }
                 try {
                     if (close_this.getAutoCommit() == false)

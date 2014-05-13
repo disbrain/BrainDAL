@@ -6,6 +6,7 @@ import akka.actor.UntypedActor;
 import akka.event.LoggingAdapter;
 import com.disbrain.dbmslayer.DbmsLayer;
 import com.disbrain.dbmslayer.DbmsLayerProvider;
+import com.disbrain.dbmslayer.descriptors.ConnectionTweaksDescriptor;
 import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
 import com.disbrain.dbmslayer.descriptors.RequestModes;
 import com.disbrain.dbmslayer.exceptions.DbmsException;
@@ -33,6 +34,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
     private boolean autocommit = false;
     private DbmsLayerProvider.DeathPolicy policy;
     private final LoggingAdapter log;
+    private ConnectionTweaksDescriptor connection_params;
 
     private int rows_num;
     private int lines_num = 1;
@@ -53,6 +55,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
         this.autocommit = gen_arg.autocommit;
         this.policy = gen_arg.deathPolicy;
         this.real_requester = gen_arg.real_requester;
+        this.connection_params = gen_arg.connection_params;
         this.log = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getLoggingAdapter();
 
         if (gen_arg.arg_array != null) {
@@ -98,7 +101,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
     @Override
     public void preStart() {
         if (fetch_reply_struct() == 0) {
-            dbms_actor = getContext().actorOf(Props.create(DBMSWorker.class), "DBMSWORKER");
+            dbms_actor = getContext().actorOf(Props.create(DBMSWorker.class, connection_params), "DBMSWORKER");
             start_fsm();
         }
     }
@@ -190,8 +193,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
                                 break;
                         }
 
-                    }
-                    else
+                    } else
                         result_list.add(dbms_result.ddl_retval);
 
                     output_obj = rep_type.getConstructor(Object[].class).newInstance(new Object[]{result_list.toArray()});

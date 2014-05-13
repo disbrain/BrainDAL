@@ -40,57 +40,56 @@ public class Main {
 
 
         generic_reply = Patterns.ask(db_layer.getQueriesBroker(), //is outside from an actor context, we use this broker to communicate with dbms querying system
-                                    new QueryRequest("SELECT COUNT(*) FROM Activities;", //SQL query
-                                                    new RequestModes(RequestModes.RequestTypology.READ_ONLY), //Query typology
-                                                    DummyOutputReply.class, //Output object. We use its constructor to properly decode output
-                                                    true //autocommit?
-                                    ),
-                                    4096000);
+                new QueryRequest("SELECT COUNT(*) FROM Activities;", //SQL query
+                        new RequestModes(RequestModes.RequestTypology.READ_ONLY), //Query typology
+                        DummyOutputReply.class, //Output object. We use its constructor to properly decode output
+                        true //autocommit?
+                ),
+                4096000);
         output_storage.add(generic_reply);
 
         generic_reply = Patterns.ask(db_layer.getQueriesBroker(),
-                                    new QueryRequest("INSERT INTO Tags(Tag_Name) VALUES (?);", //SQL query
-                                            new RequestModes(RequestModes.RequestTypology.WRITE),
-                                            DummyOutputReply.class,
-                                            true,
-                                            new Object[]{"Computer Science"}
-                                    ),
-                                    4096000);
+                new QueryRequest("INSERT INTO Tags(Tag_Name) VALUES (?);", //SQL query
+                        new RequestModes(RequestModes.RequestTypology.WRITE),
+                        DummyOutputReply.class,
+                        true,
+                        new Object[]{"Computer Science"}
+                ),
+                4096000);
         output_storage.add(generic_reply);
 
         generic_reply = Patterns.ask(db_layer.getQueriesBroker(),
-                                    new QueryRequest("INSERT INTO Languages(Lang_Name) VALUES (\"DE\");", //SQL query
-                                            new RequestModes(RequestModes.RequestTypology.WRITE),
-                                            DummyOutputReply.class,
-                                            false //automatic rollback on close wo commit
-                                    ),
-                                    4096000);
+                new QueryRequest("INSERT INTO Languages(Lang_Name) VALUES (\"DE\");", //SQL query
+                        new RequestModes(RequestModes.RequestTypology.WRITE),
+                        DummyOutputReply.class,
+                        false //automatic rollback on close wo commit
+                ),
+                4096000);
         output_storage.add(generic_reply);
 
 
-        generic_reply = Patterns.ask(   db_layer.getQueriesBroker(),
-                                        new QueryRequest("SELECT GET_LOCK(321,-1);", //SQL query
-                                                         new RequestModes(RequestModes.RequestTypology.READ_WRITE,
-                                                                          RequestModes.RequestBehaviour.RESOURCE_GETTER //locking operation, use dedicate dispatcher
-                                                         ),
-                                                         DummyOutputReply.class,
-                                                         false
-                                        ),
-                                        4096000);
+        generic_reply = Patterns.ask(db_layer.getQueriesBroker(),
+                new QueryRequest("SELECT GET_LOCK(321,-1);", //SQL query
+                        new RequestModes(RequestModes.RequestTypology.READ_WRITE,
+                                RequestModes.RequestBehaviour.RESOURCE_GETTER //locking operation, use dedicate dispatcher
+                        ),
+                        DummyOutputReply.class,
+                        false
+                ),
+                4096000);
         output_storage.add(generic_reply);
 
-        generic_reply = Patterns.ask(   db_layer.getQueriesBroker(),
-                                        new QueryRequest("SELECT RELEASE_LOCK(321);", //SQL query
-                                                         new RequestModes(RequestModes.RequestTypology.READ_WRITE,
-                                                                          RequestModes.RequestBehaviour.RESOURCE_RELEASER //unlocking operation, use resource releasing dedicate dispatcher
-                                                         ),
-                                                         DummyOutputReply.class,
-                                                         false
-                                        ),
-                                        4096000);
+        generic_reply = Patterns.ask(db_layer.getQueriesBroker(),
+                new QueryRequest("SELECT RELEASE_LOCK(321);", //SQL query
+                        new RequestModes(RequestModes.RequestTypology.READ_WRITE,
+                                RequestModes.RequestBehaviour.RESOURCE_RELEASER //unlocking operation, use resource releasing dedicate dispatcher
+                        ),
+                        DummyOutputReply.class,
+                        false
+                ),
+                4096000);
         output_storage.add(generic_reply);
 
-        
 
         // To exploit the full power and flexibility of the dbms layer we must use if from within an actor 
         generic_reply = Patterns.ask(actor, Messages.TestRequest.newBuilder().setMessage("Who's there?").build(), 4096000);

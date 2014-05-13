@@ -118,7 +118,7 @@ public class SimpleTestWorker extends UntypedActor {
 
         if (message instanceof DbmsException) {
             DbmsException error = (DbmsException) message;
-            /* here we can intercept every error coming from dbmslayer */
+            /* here we can intercept every error coming from com.disbrain.dbmslayer */
             response.clear().setReturnCode(error.getErrorCode()).setReturnMsg(error.getMessage());
         }
         final_dest.tell(response.build(), ActorRef.noSender());
