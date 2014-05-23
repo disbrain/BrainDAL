@@ -30,7 +30,7 @@ public class DbmsQuery {
 
     public static ActorRef async_reuse_fsm(ActorRef target, QueryGenericArgument old_command) {
         QueryGenericArgument new_command;
-        RequestModes.RequestTypology new_typology = RequestModes.RequestTypology.READ_ONLY;
+        RequestModes.RequestTypology new_typology = old_command.request_properties.typology;
 
         switch (old_command.request_properties.typology) {
             case READ_ONLY:
@@ -42,6 +42,8 @@ public class DbmsQuery {
             case WRITE:
                 new_typology = RequestModes.RequestTypology.ASYNC_WRITE;
                 break;
+            default:
+                System.err.println("ASYNCING AN ALREADY ASYNC REQUEST: " + old_command.query);
         }
 
         new_command = new QueryGenericArgument(old_command.real_requester,
