@@ -2,7 +2,6 @@ package com.disbrain.dbmslayer.actors.brokers;
 
 import akka.actor.UntypedActor;
 import akka.event.LoggingAdapter;
-import com.disbrain.dbmslayer.DbmsLayer;
 import com.disbrain.dbmslayer.exceptions.DbmsConnectionPoolError;
 import com.disbrain.dbmslayer.messages.CloseDbmsConnectionRequest;
 import com.disbrain.dbmslayer.messages.GetDbmsConnectionReply;
@@ -16,9 +15,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ConnectionsBroker extends UntypedActor {
 
-    private DbmsConnectionPool connection_pool = null;
+    private final DbmsConnectionPool connection_pool;
     private static volatile AtomicInteger connections_taken = new AtomicInteger(0);
-    private DbmsConnectionPoolError error = new DbmsConnectionPoolError();
     private final LoggingAdapter log;
 
     public static int getBrokerStats() {
@@ -27,11 +25,12 @@ public class ConnectionsBroker extends UntypedActor {
 
     public ConnectionsBroker(DbmsConnectionPool pool) {
         connection_pool = pool;
-        log = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getLoggingAdapter();
+        log = connection_pool.getLogger();
     }
 
-    public ConnectionsBroker() {
-        log = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getLoggingAdapter();
+    public ConnectionsBroker(LoggingAdapter logger) {
+        log = logger;
+        connection_pool = null;
     }
 
     @Override
@@ -39,14 +38,16 @@ public class ConnectionsBroker extends UntypedActor {
         do {
             if (message instanceof GetDbmsConnectionRequest) {
 
-                Object output = null;
+                Object output;
 
                 try {
                     output = new GetDbmsConnectionReply(connection_pool.getConnection(), ((GetDbmsConnectionRequest) message).connection_params);
                     connections_taken.incrementAndGet();
                 } catch (SQLException exc) {
+
                     output = new DbmsConnectionPoolError(exc, connection_pool.getStatistics());
                 }
+
                 getSender().tell(output, getSelf());
 
                 break;
@@ -58,7 +59,7 @@ public class ConnectionsBroker extends UntypedActor {
 
                 try {
                     if (close_this.isClosed()) {
-                        log.debug("CANNOT CLOSE OR ROLLBACK A CLOSED CONNECTION!");
+                        log.error("CANNOT CLOSE OR ROLLBACK A CLOSED CONNECTION!");
                         return;
                     }
                 } catch (SQLException exc) {
@@ -72,10 +73,10 @@ public class ConnectionsBroker extends UntypedActor {
                 }
                 try {
                     close_this.close();
-                    connections_taken.decrementAndGet();
                 } catch (SQLException exc) {
                     log.error(exc, "CRITICAL ERROR CLOSING A CONNECTION!");
                 }
+                connections_taken.decrementAndGet();
                 break;
             }
 

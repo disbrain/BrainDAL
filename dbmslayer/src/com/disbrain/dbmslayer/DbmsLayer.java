@@ -20,7 +20,7 @@ public class DbmsLayer extends AbstractExtensionId<DbmsLayerProvider> implements
             provider = new DbmsLayerProvider(extendedActorSystem);
         } catch (Exception exc) {
             LoggingAdapter log = Logging.getLogger(extendedActorSystem, this);
-            log.error(exc, "Unable to init DbmsLayer, halting!");
+            log.error(exc, "Unable to init DbmsLayer, halting: " + exc.getMessage());
             System.exit(123);
         }
         return provider;
