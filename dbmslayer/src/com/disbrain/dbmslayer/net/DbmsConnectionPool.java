@@ -7,7 +7,7 @@ import java.sql.Connection;
 
 public interface DbmsConnectionPool {
 
-    public DbmsConnectionPool createPool();
+    public DbmsConnectionPool createPool() throws Exception;
 
     public DbmsConnectionPool setJdbcUrl(String link);
 

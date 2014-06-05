@@ -17,6 +17,8 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 public class Main {
@@ -130,7 +132,16 @@ public class Main {
             }
         }
 
-        System.out.println("Simple test finished!");
+        System.out.print("Simple test finished!\nPress return to exit:\\>");
+        System.out.flush();
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+            br.readLine();
+        } catch (Exception exc) {
+            System.err.println("Crtitic! Shutdown and exiting");
+            your_app_actorsystem.shutdown();
+            System.exit(1234);
+        }
 
         your_app_actorsystem.shutdown();
 
