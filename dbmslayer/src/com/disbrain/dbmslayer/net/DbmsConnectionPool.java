@@ -3,7 +3,6 @@ package com.disbrain.dbmslayer.net;
 import akka.event.LoggingAdapter;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 
 
 public interface DbmsConnectionPool {
@@ -51,7 +50,7 @@ public interface DbmsConnectionPool {
     public LoggingAdapter getLogger();
 
 
-    public Connection getConnection() throws SQLException;
+    public Connection getConnection() throws Exception;
 
     public String getStatistics();
 

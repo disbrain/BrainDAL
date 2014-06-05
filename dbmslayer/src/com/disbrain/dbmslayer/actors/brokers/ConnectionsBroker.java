@@ -95,7 +95,7 @@ public class ConnectionsBroker extends UntypedActor {
                         throw new SQLException("Timeout while trying to fetch a connection!");
                     output = new GetDbmsConnectionReply(connection_pool.getConnection(), ((GetDbmsConnectionRequest) message).connection_params);
                     stats.gotConnection();
-                } catch (SQLException exc) {
+                } catch (Exception exc) {
                     stats.gotError();
                     output = new DbmsConnectionPoolError(exc, getBrokerStats());
                 }
