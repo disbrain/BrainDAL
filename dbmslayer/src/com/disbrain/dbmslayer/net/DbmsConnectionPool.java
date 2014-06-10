@@ -9,13 +9,11 @@ public interface DbmsConnectionPool {
 
     public DbmsConnectionPool createPool() throws Exception;
 
-    public DbmsConnectionPool setJdbcUrl(String link);
+    public DbmsConnectionPool setJdbcUrl(String host, int port, String dbname);
 
     public DbmsConnectionPool setUsername(String username);
 
     public DbmsConnectionPool setPassword(String password);
-
-    public DbmsConnectionPool setStatementsCacheSize(int size);
 
     public DbmsConnectionPool setAutoCommit(boolean value);
 
@@ -45,7 +43,11 @@ public interface DbmsConnectionPool {
 
     public DbmsConnectionPool setConnectionTimeout(long seconds);
 
+    public DbmsConnectionPool setPrepStmtCacheSize(int cache_size);
+
     public DbmsConnectionPool setDriver(String driver);
+
+    public DbmsConnectionPool setDataSource(String dataSource);
 
     public LoggingAdapter getLogger();
 

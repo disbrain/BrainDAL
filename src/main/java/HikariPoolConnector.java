@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Properties;
 
 
 public class HikariPoolConnector implements DbmsConnectionPool {
@@ -16,23 +17,27 @@ public class HikariPoolConnector implements DbmsConnectionPool {
         return log;
     }
 
-    public HikariPoolConnector setJdbcUrl(String link) {
-        hikari_cfg.setJdbcUrl(link);
+    public HikariPoolConnector setJdbcUrl(String host, int port, String dbname) {
+        Properties source_properties = hikari_cfg.getDataSourceProperties();
+        source_properties.setProperty(
+                "url",
+                String.format("jdbc:mysql://%s:%d/%s", host, port, dbname)
+        );
+        hikari_cfg.setDataSourceProperties(source_properties);
         return this;
     }
 
     public HikariPoolConnector setUsername(String username) {
-        hikari_cfg.setUsername(username);
+        Properties source_properties = hikari_cfg.getDataSourceProperties();
+        source_properties.setProperty("user", username);
+        hikari_cfg.setDataSourceProperties(source_properties);
         return this;
     }
 
     public HikariPoolConnector setPassword(String password) {
-        hikari_cfg.setPassword(password);
-        return this;
-    }
-
-    public HikariPoolConnector setStatementsCacheSize(int size) {
-        log.warning("Cache size not implemented for HirakiCP");
+        Properties source_properties = hikari_cfg.getDataSourceProperties();
+        source_properties.setProperty("password", password);
+        hikari_cfg.setDataSourceProperties(source_properties);
         return this;
     }
 
@@ -124,7 +129,26 @@ public class HikariPoolConnector implements DbmsConnectionPool {
     }
 
     public HikariPoolConnector setDriver(String driver) {
-        hikari_cfg.setDriverClassName(driver);
+        //hikari_cfg.setDriverClassName(driver);
+        log.warning("Driver not implemented with hikariCP");
+        return this;
+    }
+
+    public HikariPoolConnector setDataSource(String dataSource) {
+        hikari_cfg.setDataSourceClassName(dataSource);
+        return this;
+    }
+
+    public HikariPoolConnector setPrepStmtCacheSize(int cache_size) {
+        if (cache_size > 0) {
+            Properties prop = hikari_cfg.getDataSourceProperties();
+            prop.setProperty("cachePrepStmts", "" + true);
+            prop.setProperty("prepStmtCacheSize", "" + cache_size);
+            prop.setProperty("prepStmtCacheSqlLimit", "" + 2048);
+            prop.setProperty("useServerPrepStmts", "" + true);
+            hikari_cfg.setDataSourceProperties(prop);
+
+        }
         return this;
     }
 

@@ -10,15 +10,15 @@ import java.sql.Connection;
 public class BoneCPConnector implements DbmsConnectionPool {
 
     private BoneCPConfig bonecp_cfg = null;
-    private volatile BoneCP bone_cp = null;
+    private BoneCP bone_cp = null;
     private final LoggingAdapter log;
 
     public LoggingAdapter getLogger() {
         return log;
     }
 
-    public BoneCPConnector setJdbcUrl(String link) {
-        bonecp_cfg.setJdbcUrl(link);
+    public BoneCPConnector setJdbcUrl(String host, int port, String dbname) {
+        bonecp_cfg.setJdbcUrl(String.format("jdbc:mysql://%s:%d/%s", host, port, dbname));
         return this;
     }
 
@@ -29,11 +29,6 @@ public class BoneCPConnector implements DbmsConnectionPool {
 
     public BoneCPConnector setPassword(String password) {
         bonecp_cfg.setPassword(password);
-        return this;
-    }
-
-    public BoneCPConnector setStatementsCacheSize(int size) {
-        bonecp_cfg.setStatementsCacheSize(size);
         return this;
     }
 
@@ -130,6 +125,16 @@ public class BoneCPConnector implements DbmsConnectionPool {
         } catch (ClassNotFoundException e) {
             log.error(e.getStackTrace().toString());
         }
+        return this;
+    }
+
+    public BoneCPConnector setPrepStmtCacheSize(int cacheSize) {
+        bonecp_cfg.setStatementsCacheSize(cacheSize);
+        return this;
+    }
+
+    public BoneCPConnector setDataSource(String datasource) {
+        log.warning("Data Source not implemented with BoneCP");
         return this;
     }
 
