@@ -1,33 +1,32 @@
 package com.disbrain.dbmslayer.exceptions;
 
 
+import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
+
 public abstract class DbmsException extends RuntimeException {
 
     protected StackTraceElement trace[] = Thread.currentThread().getStackTrace();
     protected Exception error = null;
     protected String extraInfo = "";
     protected String real_message = null;
-    private   int    code = -1;
+    private QueryGenericArgument original_request;
+    private int code = -1;
 
-    protected DbmsException()
-    {
+    protected DbmsException() {
 
     }
 
-    protected DbmsException(Exception ex)
-    {
+    protected DbmsException(Exception ex) {
         trace = Thread.currentThread().getStackTrace();
         error = ex;
     }
 
-    protected DbmsException(Exception ex, String extra_msg)
-    {
+    protected DbmsException(Exception ex, String extra_msg) {
         error = ex;
         extraInfo = extra_msg;
     }
 
-    protected DbmsException(String extra_msg)
-    {
+    protected DbmsException(String extra_msg) {
         extraInfo = extra_msg;
     }
 
@@ -39,14 +38,21 @@ public abstract class DbmsException extends RuntimeException {
         return extraInfo;
     }
 
+    public void setOriginalQuery(QueryGenericArgument request) {
+        original_request = request;
+    }
+
+    public QueryGenericArgument getOriginalQuery() {
+        return original_request;
+    }
+
     public String getRealMessage() {
         if (error != null)
             real_message = error.getMessage();
         return real_message;
     }
 
-    public int getErrorCode()
-    {
+    public int getErrorCode() {
         return code;
     }
 }

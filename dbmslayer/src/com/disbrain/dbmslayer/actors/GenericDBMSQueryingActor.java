@@ -35,6 +35,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
     private DbmsLayerProvider.DeathPolicy policy;
     private final LoggingAdapter log;
     private ConnectionTweaksDescriptor connection_params;
+    private QueryGenericArgument gen_arg_request = null;
 
     private int rows_num;
     private int lines_num = 1;
@@ -48,6 +49,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
     }
 
     public GenericDBMSQueryingActor(QueryGenericArgument gen_arg) {
+        this.gen_arg_request = gen_arg;
         prepared = false;
         this.query = gen_arg.query;
         this.rep_type = gen_arg.reply_type;
@@ -72,11 +74,17 @@ public class GenericDBMSQueryingActor extends UntypedActor {
     private void start_fsm() {
         Object request;
 
+
         if (prepared == true)
             request = new GetDbmsPreparedStatementRequest(query, request_properties);
         else
             request = new GetDbmsStatementRequest(request_properties);
-
+        /*
+        System.err.println(query);
+        if(values != null)
+            for (Object element : values)
+                System.err.println("\t"+element.toString());
+        */
         dbms_actor.tell(request, getSelf());
     }
 
@@ -108,6 +116,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
 
     public void reincarnate(QueryGenericArgument gen_arg) {
         dbms_actor.tell(new DbmsWorkerCmdRequest(DbmsWorkerCmdRequest.Command.CLOSE_STMT), getSelf());
+        gen_arg_request = gen_arg;
         prepared = false;
         this.policy = gen_arg.deathPolicy;
         this.autocommit = gen_arg.autocommit;
@@ -123,7 +132,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
             values.clear();
         if (gen_arg.arg_array != null) {
             prepared = true;
-            values = new ArrayList<Object>();
+            values = new ArrayList<>();
             for (Object value : gen_arg.arg_array) {
                 values.add(value);
             }
@@ -203,9 +212,11 @@ public class GenericDBMSQueryingActor extends UntypedActor {
                         output_obj = new DbmsRemoteDbError(ex);
                     else
                         output_obj = new DbmsOutputFormatError(ex);
+                    ((DbmsException) output_obj).setOriginalQuery(gen_arg_request);
                 } catch (Exception ex)//(NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException ex)
                 {
                     output_obj = new DbmsLayerError(ex, " INPUT CLASS: " + rep_type.getName() + " OUT_DATA ARG LEN: " + result_list.size());
+                    ((DbmsException) output_obj).setOriginalQuery(gen_arg_request);
                 } finally {
                     if (result != null)
                         closeResult(result);
