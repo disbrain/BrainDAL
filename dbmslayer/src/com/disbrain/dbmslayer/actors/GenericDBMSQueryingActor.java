@@ -19,26 +19,35 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
+import java.util.LinkedList;
 
 
 public class GenericDBMSQueryingActor extends UntypedActor {
 
     private String query;
-    private boolean prepared = false;
-    private ArrayList<Object> values;
-    private ActorRef dbms_actor;
-    private ActorRef real_requester;
+
+    private boolean prepared = false,
+            autocommit = false;
+
+    private ActorRef dbms_actor,
+            real_requester;
+
+    private Object[] values;
+
     private Class<?> rep_type;
+
     private RequestModes request_properties = null;
-    private boolean autocommit = false;
+
     private DbmsLayerProvider.DeathPolicy policy;
+
     private final LoggingAdapter log;
+
     private ConnectionTweaksDescriptor connection_params;
+
     private QueryGenericArgument gen_arg_request = null;
 
-    private int rows_num;
-    private int lines_num = 1;
+    private int rows_num,
+            lines_num = 1;
 
     private void closeResult(ResultSet result) {
         try {
@@ -50,7 +59,6 @@ public class GenericDBMSQueryingActor extends UntypedActor {
 
     public GenericDBMSQueryingActor(QueryGenericArgument gen_arg) {
         this.gen_arg_request = gen_arg;
-        prepared = false;
         this.query = gen_arg.query;
         this.rep_type = gen_arg.reply_type;
         this.request_properties = gen_arg.request_properties;
@@ -61,30 +69,18 @@ public class GenericDBMSQueryingActor extends UntypedActor {
         this.log = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getLoggingAdapter();
 
         if (gen_arg.arg_array != null) {
-
             prepared = true;
-            values = new ArrayList<Object>();
-            for (Object value : gen_arg.arg_array) {
-                values.add(value);
-            }
+            values = gen_arg.arg_array;
         }
 
     }
 
     private void start_fsm() {
         Object request;
-
-
         if (prepared == true)
             request = new GetDbmsPreparedStatementRequest(query, request_properties);
         else
             request = new GetDbmsStatementRequest(request_properties);
-        /*
-        System.err.println(query);
-        if(values != null)
-            for (Object element : values)
-                System.err.println("\t"+element.toString());
-        */
         dbms_actor.tell(request, getSelf());
     }
 
@@ -94,7 +90,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
             rows_num = rep_type.getField("out_columns_num").getInt(null);
 
         } catch (NoSuchFieldException | IllegalAccessException ex) {
-            real_requester.tell(new DbmsLayerError(ex), ActorRef.noSender());
+
             return (-1);
         }
 
@@ -111,10 +107,13 @@ public class GenericDBMSQueryingActor extends UntypedActor {
         if (fetch_reply_struct() == 0) {
             dbms_actor = getContext().actorOf(Props.create(DBMSWorker.class, connection_params), "DBMSWORKER");
             start_fsm();
+        } else {
+            real_requester.tell(new DbmsLayerError("UNABLE TO FETCH INFO FOR REPLY CONSTRUCTION"), getSelf());
+            getContext().stop(getSelf());
         }
     }
 
-    public void reincarnate(QueryGenericArgument gen_arg) {
+    public boolean reincarnate(QueryGenericArgument gen_arg) {
         dbms_actor.tell(new DbmsWorkerCmdRequest(DbmsWorkerCmdRequest.Command.CLOSE_STMT), getSelf());
         gen_arg_request = gen_arg;
         prepared = false;
@@ -124,21 +123,24 @@ public class GenericDBMSQueryingActor extends UntypedActor {
         this.rep_type = gen_arg.reply_type;
         this.request_properties = gen_arg.request_properties;
         this.real_requester = gen_arg.real_requester;
+
         if (gen_arg.real_requester == null)
             this.real_requester = getContext().parent();
 
 
         if (values != null)
-            values.clear();
+            values = null;
+
         if (gen_arg.arg_array != null) {
             prepared = true;
-            values = new ArrayList<>();
-            for (Object value : gen_arg.arg_array) {
-                values.add(value);
-            }
+            values = gen_arg.arg_array;
         }
-        if (fetch_reply_struct() == 0)
-            start_fsm();
+
+        if (fetch_reply_struct() != 0)
+            return false;
+
+        start_fsm();
+        return true;
     }
 
     @Override
@@ -146,7 +148,8 @@ public class GenericDBMSQueryingActor extends UntypedActor {
 
         do {
             if (message instanceof QueryGenericArgument) {
-                reincarnate((QueryGenericArgument) message);
+                if (reincarnate((QueryGenericArgument) message) == false)
+                    getSelf().tell(new DbmsLayerError("UNABLE TO FETCH INFO FOR REPLY CONSTRUCTION"), getSelf());
                 break;
             }
 
@@ -161,8 +164,8 @@ public class GenericDBMSQueryingActor extends UntypedActor {
 
                 try {
 
-                    for (int param_idx = 0; param_idx < values.size(); param_idx++)
-                        p_stmt.setObject(param_idx + 1, values.get(param_idx));
+                    for (int param_idx = 0; param_idx < values.length; param_idx++)
+                        p_stmt.setObject(param_idx + 1, values[param_idx]);
 
                     getSender().tell(new DbmsExecutePrepStmtRequest(p_stmt, request_properties, autocommit), getSelf());
 
@@ -179,19 +182,10 @@ public class GenericDBMSQueryingActor extends UntypedActor {
                 boolean has_result = false;
                 DBMSReply dbms_result = (DBMSReply) message;
                 ResultSet result = dbms_result.resultSet;
-                Object output_obj = null,
-                        output_data = null;
-                ArrayList<Object> result_list = new ArrayList<>();
+                Object output_obj = null;
+                LinkedList<Object> result_list = new LinkedList<>();
                 try {
 
-                    switch (dbms_result.request_mode) {
-                        case WRITE:
-                            output_data = dbms_result.ddl_retval;
-                            break;
-                        case READ_WRITE:
-                        case READ_ONLY:
-                            output_data = null;
-                    }
                     if (result != null) {
 
                         for (int cur_line = 0; cur_line < lines_num; cur_line++) {
@@ -207,24 +201,26 @@ public class GenericDBMSQueryingActor extends UntypedActor {
 
                     output_obj = rep_type.getConstructor(Object[].class).newInstance(new Object[]{result_list.toArray()});
 
-                } catch (SQLException ex) {
-                    if (has_result == false)
-                        output_obj = new DbmsRemoteDbError(ex);
-                    else
-                        output_obj = new DbmsOutputFormatError(ex);
-                    ((DbmsException) output_obj).setOriginalQuery(gen_arg_request);
                 } catch (Exception ex)//(NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException ex)
                 {
-                    output_obj = new DbmsLayerError(ex, " INPUT CLASS: " + rep_type.getName() + " OUT_DATA ARG LEN: " + result_list.size());
-                    ((DbmsException) output_obj).setOriginalQuery(gen_arg_request);
+                    if (ex instanceof SQLException) {
+                        if (has_result == false)
+                            output_obj = new DbmsRemoteDbError(ex);
+                        else
+                            output_obj = new DbmsOutputFormatError(ex);
+                    } else
+                        output_obj = new DbmsLayerError(ex, " INPUT CLASS: " + rep_type.getName() + " OUT_DATA ARG LEN: " + result_list.size());
+
+                    ((DbmsException) output_obj).setOriginalRequest(gen_arg_request);
+
                 } finally {
+
                     if (result != null)
                         closeResult(result);
 
                     real_requester.tell(output_obj, getSelf());
                     if (policy == DbmsLayerProvider.DeathPolicy.SUICIDE)
                         getContext().stop(getSelf());
-
                 }
                 break;
             }
@@ -243,6 +239,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
             }
 
             if (message instanceof DbmsException) {
+                ((DbmsException) message).setOriginalRequest(gen_arg_request);
                 real_requester.tell(message, getSelf());
                 if (policy == DbmsLayerProvider.DeathPolicy.SUICIDE)
                     getContext().stop(getSelf());

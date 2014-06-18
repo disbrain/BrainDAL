@@ -2,6 +2,7 @@ package com.disbrain.dbmslayer;
 
 import akka.actor.ActorContext;
 import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.disbrain.dbmslayer.actors.GenericDBMSQueryingActor;
 import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
@@ -16,6 +17,10 @@ public class DbmsQuery {
     public static ActorRef create_generic_fsm(ActorContext ctx, QueryGenericArgument request, String description) {
         return ctx.actorOf(Props.create(GenericDBMSQueryingActor.class, request), description);
 
+    }
+
+    public static ActorRef create_generic_fsm(ActorSystem system, QueryGenericArgument request) {
+        return system.actorOf(Props.create(GenericDBMSQueryingActor.class, request));
     }
 
     public static ActorRef create_generic_fsm(ActorContext ctx, QueryGenericArgument request) {

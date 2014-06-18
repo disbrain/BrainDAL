@@ -14,6 +14,7 @@ public class QueryGenericArgument {
     public final ActorRef real_requester;
     public final DbmsLayerProvider.DeathPolicy deathPolicy;
     public final ConnectionTweaksDescriptor connection_params;
+    public Object memento_data = null;
 
     public QueryGenericArgument(ActorRef father, DbmsLayerProvider.DeathPolicy policy, String query, RequestModes request_properties, boolean autocommit, Class<?> reply_type, Object[] arg_array) {
         this.query = query;
@@ -85,6 +86,11 @@ public class QueryGenericArgument {
 
     public QueryGenericArgument setConnectionTweaks(ConnectionTweaksDescriptor tweaks) {
         return new QueryGenericArgument(this, tweaks);
+    }
+
+    public QueryGenericArgument setMementoData(Object data) {
+        this.memento_data = data;
+        return this;
     }
 
 }
