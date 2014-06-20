@@ -199,7 +199,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
                     } else
                         result_list.add(dbms_result.ddl_retval);
 
-                    output_obj = rep_type.getConstructor(Object[].class).newInstance(new Object[]{result_list.toArray()});
+                    output_obj = rep_type.getConstructor(QueryGenericArgument.class, Object[].class).newInstance(gen_arg_request, result_list.toArray());
 
                 } catch (Exception ex)//(NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException ex)
                 {

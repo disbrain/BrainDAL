@@ -1,6 +1,7 @@
 package akkatemplate.messages;
 
 import akkatemplate.descriptors.TagDescriptor;
+import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
 
 import java.util.ArrayList;
 
@@ -16,7 +17,7 @@ public class GetTagsReply {
     public final static int out_lines_num = Integer.MAX_VALUE;
     public final ArrayList<TagDescriptor> output;
 
-    public GetTagsReply(Object[] values) {
+    public GetTagsReply(QueryGenericArgument request, Object[] values) {
         if (values.length > 0) {
             output = new ArrayList<TagDescriptor>(values.length / out_columns_num);
             for (int idx = 0; idx < values.length; idx += out_columns_num)
