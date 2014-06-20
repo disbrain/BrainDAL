@@ -1,7 +1,5 @@
 package akkatemplate.messages;
 
-import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
-
 /**
  * Created with IntelliJ IDEA.
  * User: angel
@@ -12,7 +10,7 @@ import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
 public class DeleteReply {
     public final static int out_columns_num = 2;
 
-    public DeleteReply(QueryGenericArgument request, Object[] values) {
+    public DeleteReply(Object[] values) {
 
     }
 }

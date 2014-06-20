@@ -1,7 +1,5 @@
 package akkatemplate.messages;
 
-import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
-
 /**
  * Created with IntelliJ IDEA.
  * User: angel
@@ -14,7 +12,7 @@ public class DummyOutputReply {
     public static final int out_lines_num = Integer.MAX_VALUE;
     public final Object[] output;
 
-    public DummyOutputReply(QueryGenericArgument request, Object[] values) {
+    public DummyOutputReply(Object[] values) {
         output = values;
     }
 }

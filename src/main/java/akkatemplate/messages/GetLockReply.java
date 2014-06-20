@@ -1,7 +1,5 @@
 package akkatemplate.messages;
 
-import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
-
 /**
  * Created with IntelliJ IDEA.
  * User: angel
@@ -13,7 +11,7 @@ public class GetLockReply {
     public final static int out_columns_num = 1;
     public final boolean got_lock;
 
-    public GetLockReply(QueryGenericArgument request, Object[] values) {
+    public GetLockReply(Object[] values) {
         if (values.length > 0)
             got_lock = ((Long) values[0]) > 0;
         else

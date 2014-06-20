@@ -15,6 +15,7 @@ public class QueryGenericArgument {
     public final DbmsLayerProvider.DeathPolicy deathPolicy;
     public final ConnectionTweaksDescriptor connection_params;
     public Object memento_data = null;
+    private boolean return_this_on_reply = false;
 
     public QueryGenericArgument(ActorRef father, DbmsLayerProvider.DeathPolicy policy, String query, RequestModes request_properties, boolean autocommit, Class<?> reply_type, Object[] arg_array) {
         this.query = query;
@@ -91,6 +92,15 @@ public class QueryGenericArgument {
     public QueryGenericArgument setMementoData(Object data) {
         this.memento_data = data;
         return this;
+    }
+
+    public QueryGenericArgument setReturnOnReply() {
+        this.return_this_on_reply = true;
+        return this;
+    }
+
+    public boolean isIncludedInReply() {
+        return return_this_on_reply;
     }
 
 }
