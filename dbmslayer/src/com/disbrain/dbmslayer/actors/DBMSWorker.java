@@ -6,6 +6,7 @@ import akka.actor.UntypedActor;
 import akka.event.LoggingAdapter;
 import com.disbrain.dbmslayer.DbmsLayer;
 import com.disbrain.dbmslayer.descriptors.ConnectionTweaksDescriptor;
+import com.disbrain.dbmslayer.descriptors.EnqueuedRequestDescriptor;
 import com.disbrain.dbmslayer.exceptions.DbmsException;
 import com.disbrain.dbmslayer.exceptions.DbmsLayerError;
 import com.disbrain.dbmslayer.exceptions.DbmsRemoteDbError;
@@ -16,17 +17,19 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
+import java.util.LinkedList;
 
 public class DBMSWorker extends UntypedActor {
 
     private Statement running_stmt = null;
     private PreparedStatement prepared_running_stmt = null;
 
+    private final static DbmsException UNKNOWN_REQUEST_RESOURCE = new DbmsLayerError("UNKNOWN REQUEST RESOURCE"),
+            UNKNOWN_REQUEST_TYPOLOGY = new DbmsLayerError("UNKNOWN REQUEST TYPOLOGY");
+
     private Connection dbms_connection = null;
     private final ConnectionTweaksDescriptor connection_params;
-    private ArrayList<Object> messages = new ArrayList<Object>();
-    private ArrayList<ActorRef> messages_senders = new ArrayList<ActorRef>();
+    private LinkedList<EnqueuedRequestDescriptor> backlog_messages = new LinkedList<>();
     private final LoggingAdapter log;
 
     public DBMSWorker(ConnectionTweaksDescriptor connection_params) {
@@ -56,87 +59,88 @@ public class DBMSWorker extends UntypedActor {
 
     @Override
     public void onReceive(Object message) {
-        Object output_data = null;
-        int fsm_stage = 0;
+        Object output_data;
 
+        do {
 
-        try {
+            if (message instanceof GetDbmsConnectionReply) {
+                dbms_connection = ((GetDbmsConnectionReply) message).connection;
+                for (EnqueuedRequestDescriptor previous_message : backlog_messages)
+                    getSelf().tell(previous_message.payload, previous_message.sender);
+                backlog_messages.clear();
+                return;
+            }
 
-            do {
+            if (message instanceof DbmsException) {
+                getContext().parent().tell(message, getSelf());
+                return;
+            }
 
-                if (message instanceof GetDbmsConnectionReply) {
-                    int prev_requests = messages.size();
-                    dbms_connection = ((GetDbmsConnectionReply) message).connection;
-                    for (int cur_req = 0; cur_req < prev_requests; cur_req++) {
-                        getSelf().tell(messages.remove(0), messages_senders.remove(0));
+            if (dbms_connection == null) {
+                /* re enqueue to myself is a connection is not yet available */
+                backlog_messages.add(new EnqueuedRequestDescriptor(message, getSender()));
+                return;
+            }
 
-
-                    }
-                    return;
+            if (message instanceof AsyncForwardRequest) {
+                switch (((AsyncForwardRequest) message).routing_data.behaviour) {
+                    case RESOURCE_GETTER:
+                        /* SOMEONE ELSE WILL SEND THE REPLY */
+                        DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncGetTasksBroker().forward(((AsyncForwardRequest) message).request, getContext());
+                        return;
+                    case RESOURCE_RELEASER:
+                        DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncReleaseTasksBroker().forward(((AsyncForwardRequest) message).request, getContext());
+                        return;
+                    case RESOURCE_WHATEVER:
+                        DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncWhateverTasksBroker().forward(((AsyncForwardRequest) message).request, getContext());
+                        return;
+                    default:
+                        output_data = UNKNOWN_REQUEST_RESOURCE;
                 }
+                break;
+            }
 
-                if (message instanceof DbmsException) {
-                    getContext().parent().tell(message, getSelf());
-                    return;
-                }
+            if (message instanceof DbmsExecuteStmtRequest) {
 
-                if (dbms_connection == null) {
-                    /* re enqueue to myself */
-                    messages.add(message);
-                    messages_senders.add(getSender());
+                running_stmt = ((DbmsExecuteStmtRequest) message).stmt;
 
-                    return;
-                }
+                try {
 
-                if (message instanceof DbmsExecuteStmtRequest) {
+                    running_stmt.getConnection().setAutoCommit(((DbmsExecuteStmtRequest) message).autocommit);
 
-                    DbmsExecuteStmtRequest exec_msg = (DbmsExecuteStmtRequest) message;
-                    fsm_stage = 1;
-                    running_stmt = exec_msg.stmt;
-
-                    running_stmt.getConnection().setAutoCommit(exec_msg.autocommit);
-                    switch (exec_msg.request_opts.typology) {
+                    switch (((DbmsExecuteStmtRequest) message).request_opts.typology) {
                         case WRITE:
-                            output_data = new DBMSReply(running_stmt.executeUpdate(exec_msg.query), exec_msg.request_opts.typology);
+                            output_data = new DBMSReply(
+                                    running_stmt.executeUpdate(((DbmsExecuteStmtRequest) message).query),
+                                    ((DbmsExecuteStmtRequest) message).request_opts.typology);
                             break;
                         case READ_ONLY:
                         case READ_WRITE:
-                            output_data = new DBMSReply(running_stmt.executeQuery(exec_msg.query), exec_msg.request_opts.typology);
+                            output_data = new DBMSReply(
+                                    running_stmt.executeQuery(((DbmsExecuteStmtRequest) message).query),
+                                    ((DbmsExecuteStmtRequest) message).request_opts.typology);
                             break;
                         case ASYNC_READ_ONLY:
                         case ASYNC_WRITE:
                         case ASYNC_READ_WRITE:
-                            switch (exec_msg.request_opts.behaviour) {
-                                case RESOURCE_GETTER:
-                                    /* SOMEONE ELSE WILL SEND THE REPLY */
-                                    DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncGetTasksBroker().forward(exec_msg, getContext());
-                                    return;
-                                case RESOURCE_RELEASER:
-                                    /* SOMEONE ELSE WILL SEND THE REPLY */
-                                    DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncReleaseTasksBroker().forward(exec_msg, getContext());
-                                    return;
-                                case RESOURCE_WHATEVER:
-                                    /* SOMEONE ELSE WILL SEND THE REPLY */
-                                    DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncWhateverTasksBroker().forward(exec_msg, getContext());
-                                    return;
-                                default:
-                                    output_data = new DbmsLayerError("UNKNOWN REQUEST RESOURCE");
-                            }
-
-                            break;
+                            getSelf().tell(new AsyncForwardRequest(message, ((DbmsExecuteStmtRequest) message).request_opts), getSender());
+                            return;
                         default:
-                            output_data = new DbmsLayerError("UNKNOWN REQUEST TYPOLOGY");
+                            output_data = UNKNOWN_REQUEST_TYPOLOGY;
                             break;
-
                     }
-
-                    break;
+                } catch (SQLException sql_exc) {
+                    output_data = new DbmsRemoteQueryError(sql_exc);
                 }
+                break;
+            }
 
-                if (message instanceof DbmsExecutePrepStmtRequest) {
-                    DbmsExecutePrepStmtRequest exec_msg = (DbmsExecutePrepStmtRequest) message;
-                    fsm_stage = 4;
-                    prepared_running_stmt = exec_msg.stmt;
+            if (message instanceof DbmsExecutePrepStmtRequest) {
+                DbmsExecutePrepStmtRequest exec_msg = (DbmsExecutePrepStmtRequest) message;
+
+                prepared_running_stmt = exec_msg.stmt;
+
+                try {
                     prepared_running_stmt.getConnection().setAutoCommit(exec_msg.autocommit);
                     switch (exec_msg.request_opts.typology) {
                         case WRITE:
@@ -149,98 +153,73 @@ public class DBMSWorker extends UntypedActor {
                         case ASYNC_READ_ONLY:
                         case ASYNC_WRITE:
                         case ASYNC_READ_WRITE:
-                            switch (exec_msg.request_opts.behaviour) {
-                                case RESOURCE_GETTER:
-                                    /* SOMEONE ELSE WILL SEND THE REPLY */
-                                    DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncGetTasksBroker().forward(exec_msg, getContext());
-                                    return;
-                                case RESOURCE_RELEASER:
-                                    /* SOMEONE ELSE WILL SEND THE REPLY */
-                                    DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncReleaseTasksBroker().forward(exec_msg, getContext());
-                                    return;
-                                case RESOURCE_WHATEVER:
-                                    /* SOMEONE ELSE WILL SEND THE REPLY */
-                                    DbmsLayer.DbmsLayerProvider.get(getContext().system()).getAsyncWhateverTasksBroker().forward(exec_msg, getContext());
-                                    return;
-                                default:
-                                    output_data = new DbmsLayerError("UNKNOWN REQUEST RESOURCE");
-                            }
-
-                            break;
+                            getSelf().tell(new AsyncForwardRequest(message, ((DbmsExecutePrepStmtRequest) message).request_opts), getSender());
+                            return;
                         default:
-                            output_data = new DbmsLayerError("UNKNOWN REQUEST TYPOLOGY");
+                            output_data = UNKNOWN_REQUEST_TYPOLOGY;
                             break;
                     }
-
-                    break;
-
+                } catch (SQLException sql_exc) {
+                    output_data = new DbmsRemoteQueryError(sql_exc);
                 }
+                break;
+            }
 
-                if (message instanceof GetDbmsStatementRequest) {
-                    GetDbmsStatementRequest request = (GetDbmsStatementRequest) message;
-                    fsm_stage = 2;
+            if (message instanceof GetDbmsStatementRequest) {
+                GetDbmsStatementRequest request = (GetDbmsStatementRequest) message;
+                try {
                     output_data = new GetDbmsStatementReply(dbms_connection, request);
-                    running_stmt = ((GetDbmsStatementReply) output_data).stmt;
+                } catch (SQLException sql_exc) {
+                    output_data = new DbmsLayerError(sql_exc);
                     break;
                 }
+                //running_stmt = ((GetDbmsStatementReply) output_data).stmt;
+                break;
+            }
 
-                if (message instanceof GetDbmsPreparedStatementRequest) {
-                    GetDbmsPreparedStatementRequest request = (GetDbmsPreparedStatementRequest) message;
+            if (message instanceof GetDbmsPreparedStatementRequest) {
+                GetDbmsPreparedStatementRequest request = (GetDbmsPreparedStatementRequest) message;
+                try {
                     output_data = new GetDbmsPreparedStatementReply(dbms_connection, request);
-                    prepared_running_stmt = ((GetDbmsPreparedStatementReply) output_data).p_stmt;
+                } catch (SQLException sql_exc) {
+                    output_data = new DbmsLayerError(sql_exc);
                     break;
                 }
+                //prepared_running_stmt = ((GetDbmsPreparedStatementReply) output_data).p_stmt;
+                break;
+            }
 
-                if (message instanceof DbmsWorkerCmdRequest) {
-                    DbmsWorkerCmdRequest cmd_request = (DbmsWorkerCmdRequest) message;
-                    output_data = new DbmsWorkerCmdReply(((DbmsWorkerCmdRequest) message).request);
-                    fsm_stage = 5;
+            if (message instanceof DbmsWorkerCmdRequest) {
+                DbmsWorkerCmdRequest cmd_request = (DbmsWorkerCmdRequest) message;
+                output_data = new DbmsWorkerCmdReply(((DbmsWorkerCmdRequest) message).request);
+                try {
                     switch (cmd_request.request) {
-                        /*
-                        http://dev.mysql.com/doc/refman/5.5/en/metadata-locking.html
-                        http://stackoverflow.com/questions/19203455/jdbc-mysql-lock-tables-freeze
-                         */
+                    /*
+                    http://dev.mysql.com/doc/refman/5.5/en/metadata-locking.html
+                    http://stackoverflow.com/questions/19203455/jdbc-mysql-lock-tables-freeze
+                     */
                         case ROLLBACK:
                             dbms_connection.rollback();
                             break;
                         case COMMIT:
-                            if (dbms_connection.getAutoCommit() == false)
-                                dbms_connection.commit();
+                            dbms_connection.commit();
                             break;
                         case CLOSE_STMT:
                             closeStatement();
                             break;
                         default:
-                            DbmsException error = new DbmsLayerError(String.format("Unhandled Command DBMSWorker: %s\n", message.getClass()));
-                            output_data = error;
+                            output_data = new DbmsLayerError(String.format("Unhandled Command DBMSWorker: %s\n", message.getClass()));
 
                     }
-
-                    break;
+                } catch (SQLException sql_exc) {
+                    output_data = new DbmsRemoteDbError(sql_exc);
                 }
-
-                output_data = new DbmsLayerError(String.format("Unhandled in DBMSWorker: %s\n", message.getClass()));
-
-            } while (false);
-
-
-        } catch (SQLException ex) {
-            DbmsException error = null;
-            switch (fsm_stage) {
-                case 1:
-                case 4:
-                    error = new DbmsRemoteQueryError(ex);
-                    break;
-                case 2:
-                case 3:
-                    error = new DbmsRemoteDbError(ex);
-                    break;
-                case 5:
-                    error = new DbmsLayerError(ex);
+                break;
             }
-            output_data = error;
 
-        }
+            output_data = new DbmsLayerError(String.format("Unhandled in DBMSWorker: %s\n", message.getClass().getName()));
+
+        } while (false);
 
         getSender().tell(output_data, getSelf());
 

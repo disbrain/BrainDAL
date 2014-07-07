@@ -38,8 +38,9 @@ public abstract class DbmsException extends RuntimeException {
         return extraInfo;
     }
 
-    public void setOriginalRequest(QueryGenericArgument request) {
+    public DbmsException setOriginalRequest(QueryGenericArgument request) {
         original_request = request;
+        return this;
     }
 
     public QueryGenericArgument getOriginalRequest() {
