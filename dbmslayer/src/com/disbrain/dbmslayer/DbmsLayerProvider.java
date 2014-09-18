@@ -162,6 +162,8 @@ public class DbmsLayerProvider implements Extension {
         return connections_broker;
     }
 
+    public ActorRef getDeadLettersBroker() { return dead_letter_handler; }
+
     public ActorRef getCloseConnectionsBroker() {
         return close_connections_broker;
     }

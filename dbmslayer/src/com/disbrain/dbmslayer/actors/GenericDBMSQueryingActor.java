@@ -65,6 +65,8 @@ public class GenericDBMSQueryingActor extends UntypedActor {
         this.autocommit = gen_arg.autocommit;
         this.policy = gen_arg.deathPolicy;
         this.real_requester = gen_arg.real_requester;
+        if(this.real_requester == null)
+            this.real_requester = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getDeadLettersBroker();
         this.connection_params = gen_arg.connection_params;
         this.log = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getLoggingAdapter();
 
@@ -125,7 +127,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
         this.real_requester = gen_arg.real_requester;
 
         if (gen_arg.real_requester == null)
-            this.real_requester = getContext().parent();
+            this.real_requester = DbmsLayer.DbmsLayerProvider.get(getContext().system()).getDeadLettersBroker(); // getContext().parent();
 
 
         if (values != null)
