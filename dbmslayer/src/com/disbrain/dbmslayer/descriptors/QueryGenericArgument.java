@@ -28,6 +28,17 @@ public class QueryGenericArgument {
         this.connection_params = null;
     }
 
+    public QueryGenericArgument(ActorRef father, DbmsLayerProvider.DeathPolicy policy, String query, RequestModes request_properties, boolean autocommit, Class<?> reply_type) {
+        this.query = query;
+        this.deathPolicy = policy;
+        this.request_properties = request_properties;
+        this.reply_type = reply_type;
+        this.arg_array = null;
+        this.autocommit = autocommit;
+        this.real_requester = father;
+        this.connection_params = null;
+    }
+
 
     public QueryGenericArgument(ActorRef father, String query, RequestModes request_properties, boolean autocommit, Class<?> reply_type, Object[] arg_array) {
         this.query = query;
