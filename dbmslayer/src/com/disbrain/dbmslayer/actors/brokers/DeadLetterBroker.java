@@ -5,6 +5,7 @@ import akka.actor.DeadLetter;
 import akka.actor.UntypedActor;
 import akka.event.LoggingAdapter;
 import com.disbrain.dbmslayer.DbmsLayer;
+import com.disbrain.dbmslayer.descriptors.QueryGenericArgument;
 import com.disbrain.dbmslayer.exceptions.DbmsException;
 import com.disbrain.dbmslayer.messages.CloseDbmsConnectionRequest;
 import com.disbrain.dbmslayer.messages.GetDbmsConnectionReply;
@@ -33,11 +34,17 @@ public class DeadLetterBroker extends UntypedActor {
                 Object real_msg;
                 real_msg = dead_msg.message();
 
-                if (real_msg instanceof GetDbmsConnectionReply) {
+                if (real_msg instanceof GetDbmsConnectionReply)
+                {
                     connection_broker.tell(new CloseDbmsConnectionRequest(((GetDbmsConnectionReply) real_msg).connection), ActorRef.noSender());
                     return;
                 }
 
+                if(real_msg instanceof QueryGenericArgument)
+                {
+                    log.error("GenericQueryArgument found! Are you trying to reuse a suicided GenericDBMSWorker?");
+                    return;
+                }
                 try {
                     if (real_msg instanceof GetDbmsStatementReply) {
                         GetDbmsStatementReply reply = (GetDbmsStatementReply) real_msg;

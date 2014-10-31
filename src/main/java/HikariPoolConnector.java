@@ -52,7 +52,7 @@ public class HikariPoolConnector implements DbmsConnectionPool {
     }
 
     public HikariPoolConnector setMinimumConnectionNum(int limit) {
-        hikari_cfg.setMinimumPoolSize(limit);
+        log.warning("Minimum connection num not implemented selected pool");
         return this;
     }
 
@@ -62,7 +62,7 @@ public class HikariPoolConnector implements DbmsConnectionPool {
     }
 
     public HikariPoolConnector setConnectionAcquireIncrement(int increment) {
-        hikari_cfg.setAcquireIncrement(increment);
+        log.warning("Connection acquire increment no implemented selected pool");
         return this;
     }
 
