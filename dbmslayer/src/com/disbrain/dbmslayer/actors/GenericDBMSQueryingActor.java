@@ -13,6 +13,7 @@ import com.disbrain.dbmslayer.exceptions.DbmsException;
 import com.disbrain.dbmslayer.exceptions.DbmsLayerError;
 import com.disbrain.dbmslayer.exceptions.DbmsOutputFormatError;
 import com.disbrain.dbmslayer.exceptions.DbmsRemoteDbError;
+import com.disbrain.dbmslayer.hotcache.BrainDbmsHotCache;
 import com.disbrain.dbmslayer.messages.*;
 
 import java.sql.PreparedStatement;
@@ -24,13 +25,13 @@ import java.util.LinkedList;
 
 public class GenericDBMSQueryingActor extends UntypedActor {
 
-    private String query;
+    private String  query;
 
     private boolean prepared = false,
-            autocommit = false;
+                    autocommit = false;
 
     private ActorRef dbms_actor,
-            real_requester;
+                     real_requester;
 
     private Object[] values;
 
@@ -47,7 +48,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
     private QueryGenericArgument gen_arg_request = null;
 
     private int rows_num,
-            lines_num = 1;
+                lines_num = 1;
 
     private void closeResult(ResultSet result) {
         try {
@@ -82,24 +83,21 @@ public class GenericDBMSQueryingActor extends UntypedActor {
         if (prepared == true)
             request = new GetDbmsPreparedStatementRequest(query, request_properties);
         else
-            request = new GetDbmsStatementRequest(request_properties);
+            request = BrainDbmsHotCache.common_get_statement_requester; //new GetDbmsStatementRequest(request_properties);
         dbms_actor.tell(request, getSelf());
     }
 
     private int fetch_reply_struct() {
+
+        rows_num = -1;
         try {
 
             rows_num = rep_type.getField("out_columns_num").getInt(null);
-
-        } catch (NoSuchFieldException | IllegalAccessException ex) {
-
-            return (-1);
-        }
-
-        try {
             lines_num = rep_type.getField("out_lines_num").getInt(null);
-        } catch (NoSuchFieldException | IllegalAccessException ex) {
 
+        } catch (NoSuchFieldException | IllegalAccessException ex) {
+            if(rows_num == -1)
+                return -1;
         }
         return (0);
     }
@@ -110,13 +108,13 @@ public class GenericDBMSQueryingActor extends UntypedActor {
             dbms_actor = getContext().actorOf(Props.create(DBMSWorker.class, connection_params), "DBMSWORKER");
             start_fsm();
         } else {
-            real_requester.tell(new DbmsLayerError("UNABLE TO FETCH INFO FOR REPLY CONSTRUCTION"), getSelf());
+            real_requester.tell(BrainDbmsHotCache.malformed_reply_type_found, getSelf());
             getContext().stop(getSelf());
         }
     }
 
     public boolean reincarnate(QueryGenericArgument gen_arg) {
-        dbms_actor.tell(new DbmsWorkerCmdRequest(DbmsWorkerCmdRequest.Command.CLOSE_STMT), getSelf());
+        dbms_actor.tell(BrainDbmsHotCache.close_statement_command, getSelf());
         gen_arg_request = gen_arg;
         prepared = false;
         this.policy = gen_arg.deathPolicy;

@@ -30,7 +30,7 @@ public class Main {
         ArrayList<Future<Object>> output_storage = new ArrayList<Future<Object>>();
         int storage_size;
         Config user_cfg = ConfigFactory.load();
-        ActorSystem your_app_actorsystem = akka.actor.ActorSystem.create("YourAppAS", user_cfg);
+        ActorSystem your_app_actorsystem = akka.actor.ActorSystem.create("YourAppAS", user_cfg.getConfig("YourAppConfig"));
 
         DbmsLayerProvider db_layer = DbmsLayer.DbmsLayerProvider.get(your_app_actorsystem);
 
