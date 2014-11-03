@@ -1,5 +1,7 @@
 package com.disbrain.dbmslayer.descriptors;
 
+import com.disbrain.dbmslayer.hotcache.BrainDbmsHotCache;
+
 import java.sql.ResultSet;
 
 public class RequestModes {
@@ -25,18 +27,17 @@ public class RequestModes {
     }
 
     public RequestModeDescription getProperty() {
-        RequestModeDescription properties = null;
+        RequestModeDescription properties;
 
         switch (typology) {
+            default:
             case ASYNC_READ_ONLY:
             case ASYNC_READ_WRITE:
             case READ_ONLY:
             case READ_WRITE:
-                properties = new RequestModeDescription(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY, ResultSet.CLOSE_CURSORS_AT_COMMIT);
-                break;
             case ASYNC_WRITE:
             case WRITE:
-                properties = new RequestModeDescription(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY, ResultSet.CLOSE_CURSORS_AT_COMMIT);
+                properties = BrainDbmsHotCache.polyvalent_request_mode_description;
                 break;
 
         }
