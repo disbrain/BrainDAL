@@ -16,14 +16,19 @@ import com.disbrain.dbmslayer.exceptions.DbmsRemoteDbError;
 import com.disbrain.dbmslayer.hotcache.BrainDbmsHotCache;
 import com.disbrain.dbmslayer.messages.*;
 
+import java.lang.reflect.Constructor;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
 import java.util.LinkedList;
 
 
 public class GenericDBMSQueryingActor extends UntypedActor {
+
+    private final static HashMap<Class<?>,Constructor<?>>   piggybacked_reply_constructors = new HashMap<>(),
+                                                            plain_reply_constructors = new HashMap<>();
 
     private String  query;
 
@@ -184,6 +189,7 @@ public class GenericDBMSQueryingActor extends UntypedActor {
                 ResultSet result = dbms_result.resultSet;
                 Object output_obj = null;
                 LinkedList<Object> result_list = new LinkedList<>();
+                Constructor<?> reply_constructor;
                 try {
 
                     if (result != null) {
@@ -199,10 +205,41 @@ public class GenericDBMSQueryingActor extends UntypedActor {
                     } else
                         result_list.add(dbms_result.ddl_retval);
 
-                    if (gen_arg_request.isIncludedInReply())
-                        output_obj = rep_type.getConstructor(QueryGenericArgument.class, Object[].class).newInstance(gen_arg_request, result_list.toArray());
-                    else
-                        output_obj = rep_type.getConstructor(Object[].class).newInstance(new Object[]{result_list.toArray()});
+
+
+                    if (gen_arg_request.isIncludedInReply()) {
+                        reply_constructor = piggybacked_reply_constructors.get(rep_type);
+                        if(reply_constructor == null)
+                        {
+                            synchronized (piggybacked_reply_constructors)
+                            {
+                                reply_constructor = piggybacked_reply_constructors.get(rep_type);
+                                if(reply_constructor == null)
+                                {
+                                    reply_constructor = rep_type.getConstructor(QueryGenericArgument.class, Object[].class);
+                                    piggybacked_reply_constructors.put(rep_type,reply_constructor);
+                                }
+
+                            }
+                        }
+                        output_obj = reply_constructor.newInstance(gen_arg_request, result_list.toArray());
+                    }
+                    else {
+                        reply_constructor = plain_reply_constructors.get(rep_type);
+                        if(reply_constructor == null)
+                        {
+                            synchronized (plain_reply_constructors)
+                            {
+                                reply_constructor = plain_reply_constructors.get(rep_type);
+                                if(reply_constructor == null)
+                                {
+                                    reply_constructor = rep_type.getConstructor(Object[].class);
+                                    plain_reply_constructors.put(rep_type,reply_constructor);
+                                }
+                            }
+                        }
+                        output_obj = reply_constructor.newInstance(new Object[]{result_list.toArray()});
+                    }
 
                 } catch (Exception ex)//(NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException ex)
                 {
