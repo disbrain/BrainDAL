@@ -115,10 +115,12 @@ public class Main {
                 else
                     System.out.print("None!");
                 System.out.println();
+                continue;
             }
             if (generic_response instanceof DbmsException) {
                 DbmsException error = (DbmsException) generic_response;
                 System.err.println("Unexpected Return Code: " + ((DbmsException) generic_response).getErrorCode() + " Message: " + error.getRealMessage());
+                continue;
             }
             if (generic_response instanceof Messages.TestReply) {
 
@@ -129,7 +131,9 @@ public class Main {
                         System.out.println(String.format("\t%d", element));
                 else
                     System.out.println("Error found: " + reply.getReturnMsg());
+                continue;
             }
+            System.err.println(generic_response.getClass().getName());
         }
 
         System.out.print("Simple test finished!\nPress return to exit:\\>");
