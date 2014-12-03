@@ -216,13 +216,13 @@ public class GenericDBMSQueryingActor extends UntypedActor {
                                 reply_constructor = piggybacked_reply_constructors.get(rep_type);
                                 if(reply_constructor == null)
                                 {
-                                    reply_constructor = rep_type.getConstructor(QueryGenericArgument.class, Object[].class);
+                                    reply_constructor = rep_type.getConstructor(QueryGenericArgument.class, LinkedList.class);
                                     piggybacked_reply_constructors.put(rep_type,reply_constructor);
                                 }
 
                             }
                         }
-                        output_obj = reply_constructor.newInstance(gen_arg_request, result_list.toArray());
+                        output_obj = reply_constructor.newInstance(gen_arg_request, result_list);
                     }
                     else {
                         reply_constructor = plain_reply_constructors.get(rep_type);
@@ -233,12 +233,12 @@ public class GenericDBMSQueryingActor extends UntypedActor {
                                 reply_constructor = plain_reply_constructors.get(rep_type);
                                 if(reply_constructor == null)
                                 {
-                                    reply_constructor = rep_type.getConstructor(Object[].class);
+                                    reply_constructor = rep_type.getConstructor(LinkedList.class);
                                     plain_reply_constructors.put(rep_type,reply_constructor);
                                 }
                             }
                         }
-                        output_obj = reply_constructor.newInstance(new Object[]{result_list.toArray()});
+                        output_obj = reply_constructor.newInstance(result_list);
                     }
 
                 } catch (Exception ex)//(NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException ex)
