@@ -1,5 +1,7 @@
 package akkatemplate.messages;
 
+import java.util.LinkedList;
+
 /**
  * Created with IntelliJ IDEA.
  * User: angel
@@ -10,7 +12,7 @@ package akkatemplate.messages;
 public class ReleaseReply {
     public final static int out_columns_num = 1;
 
-    public ReleaseReply(Object[] values) {
+    public ReleaseReply(LinkedList<Object> values) {
 
     }
 }

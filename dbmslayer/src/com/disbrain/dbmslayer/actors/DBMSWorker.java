@@ -31,6 +31,7 @@ public class DBMSWorker extends UntypedActor {
     private final ConnectionTweaksDescriptor connection_params;
     private LinkedList<EnqueuedRequestDescriptor> backlog_messages = new LinkedList<>();
     private final LoggingAdapter log;
+    private boolean shall_evict = false;
 
     public DBMSWorker(ConnectionTweaksDescriptor connection_params) {
         this.connection_params = connection_params;
@@ -207,6 +208,9 @@ public class DBMSWorker extends UntypedActor {
                         case CLOSE_STMT:
                             closeStatement();
                             break;
+                        case DESTROY_CONNECTION:
+                            shall_evict = true;
+                            break;
                         default:
                             output_data = new DbmsLayerError(String.format("Unhandled Command DBMSWorker: %s\n", message.getClass()));
 
@@ -229,7 +233,7 @@ public class DBMSWorker extends UntypedActor {
     public void postStop() {
         closeStatement();
         if (dbms_connection != null)
-            DbmsLayer.DbmsLayerProvider.get(getContext().system()).getCloseConnectionsBroker().tell(new CloseDbmsConnectionRequest(dbms_connection), ActorRef.noSender());
+            DbmsLayer.DbmsLayerProvider.get(getContext().system()).getCloseConnectionsBroker().tell(new CloseDbmsConnectionRequest(shall_evict, dbms_connection), ActorRef.noSender());
 
     }
 

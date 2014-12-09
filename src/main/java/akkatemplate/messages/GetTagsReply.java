@@ -3,6 +3,7 @@ package akkatemplate.messages;
 import akkatemplate.descriptors.TagDescriptor;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 /**
  * Created with IntelliJ IDEA.
@@ -16,11 +17,12 @@ public class GetTagsReply {
     public final static int out_lines_num = Integer.MAX_VALUE;
     public final ArrayList<TagDescriptor> output;
 
-    public GetTagsReply(Object[] values) {
-        if (values.length > 0) {
-            output = new ArrayList<TagDescriptor>(values.length / out_columns_num);
-            for (int idx = 0; idx < values.length; idx += out_columns_num)
-                output.add(new TagDescriptor(values[idx], values[idx + 1]));
+    public GetTagsReply(LinkedList<Object> values) {
+        if (values.size() > 0) {
+            output = new ArrayList<TagDescriptor>(values.size() / out_columns_num);
+
+            for (int idx = 0; idx < values.size(); idx += out_columns_num)
+                output.add(new TagDescriptor(values.get(idx), values.get(idx + 1)));
         } else
             output = null;
     }

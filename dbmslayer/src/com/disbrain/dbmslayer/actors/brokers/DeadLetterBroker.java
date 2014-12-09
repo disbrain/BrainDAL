@@ -36,7 +36,7 @@ public class DeadLetterBroker extends UntypedActor {
 
                 if (real_msg instanceof GetDbmsConnectionReply)
                 {
-                    connection_broker.tell(new CloseDbmsConnectionRequest(((GetDbmsConnectionReply) real_msg).connection), ActorRef.noSender());
+                    connection_broker.tell(new CloseDbmsConnectionRequest(false, ((GetDbmsConnectionReply) real_msg).connection), ActorRef.noSender());
                     return;
                 }
 

@@ -17,6 +17,10 @@ public class HikariPoolConnector implements DbmsConnectionPool {
         return log;
     }
 
+    public void destroyConnection(Connection destroy_this) {
+        hikari_cp.evictConnection(destroy_this);
+    }
+
     public HikariPoolConnector setJdbcUrl(String host, int port, String dbname) {
         Properties source_properties = hikari_cfg.getDataSourceProperties();
         source_properties.setProperty(

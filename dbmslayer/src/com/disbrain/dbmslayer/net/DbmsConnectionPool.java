@@ -51,6 +51,7 @@ public interface DbmsConnectionPool {
 
     public LoggingAdapter getLogger();
 
+    public void destroyConnection(Connection destroy_me);
 
     public Connection getConnection() throws Exception;
 

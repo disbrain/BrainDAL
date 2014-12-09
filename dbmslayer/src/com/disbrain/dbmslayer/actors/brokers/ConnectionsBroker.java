@@ -133,7 +133,10 @@ public class ConnectionsBroker extends UntypedActor {
                     log.error(exc, "ERROR ROLLBACKING A CONNECTION, TRYING TO KEEP GOING");
                 }
                 try {
-                    close_this.close();
+                    if (((CloseDbmsConnectionRequest) message).shall_evict)
+                        connection_pool.destroyConnection(close_this);
+                    else
+                        close_this.close();
                     stats.releaseConnection();
                 } catch (Exception exc) {
                     stats.releaseError();

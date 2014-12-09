@@ -4,8 +4,10 @@ import java.sql.Connection;
 
 public class CloseDbmsConnectionRequest {
     public final Connection connection;
+    public final boolean shall_evict;
 
-    public CloseDbmsConnectionRequest(Connection conn) {
+    public CloseDbmsConnectionRequest(boolean shall_evict, Connection conn) {
+        this.shall_evict = shall_evict;
         connection = conn;
     }
 }
